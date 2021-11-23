@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 mcp3008 = "1.0.0"
+sysfs_gpio = "0.6.1"
