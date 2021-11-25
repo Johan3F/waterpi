@@ -1,27 +1,66 @@
 use sysfs_gpio::{Direction, Error, Pin};
 
-pub struct WaterPump {
+pub trait WaterPump: Send {
+    fn stop(&mut self) -> Result<(), Error>;
+    fn on(&mut self) -> Result<(), Error>;
+    fn off(&mut self) -> Result<(), Error>;
+}
+
+pub struct WaterPumpImpl {
     pump: Pin,
 }
 
-impl WaterPump {
-    pub fn new(pin: u64) -> Result<WaterPump, Error> {
+impl WaterPumpImpl {
+    pub fn new(pin: u64) -> Result<WaterPumpImpl, Error> {
         let water_pump = Pin::new(pin);
         water_pump.export()?;
         water_pump.set_direction(Direction::Out)?;
         water_pump.set_value(0)?;
 
-        Ok(WaterPump { pump: water_pump })
+        Ok(WaterPumpImpl { pump: water_pump })
     }
-    pub fn stop(&self) -> Result<(), Error> {
+}
+
+impl WaterPump for WaterPumpImpl {
+    fn stop(&mut self) -> Result<(), Error> {
         self.off()
     }
 
-    pub fn on(&self) -> Result<(), Error> {
+    fn on(&mut self) -> Result<(), Error> {
         self.pump.set_value(1)
     }
 
-    pub fn off(&self) -> Result<(), Error> {
+    fn off(&mut self) -> Result<(), Error> {
         self.pump.set_value(0)
+    }
+}
+
+pub struct WaterPumpMock {
+    is_on: bool,
+}
+
+impl WaterPumpMock {
+    pub fn new(_pin: u64) -> Result<WaterPumpMock, Error> {
+        Ok(WaterPumpMock { is_on: false })
+    }
+}
+
+impl WaterPump for WaterPumpMock {
+    fn stop(&mut self) -> Result<(), Error> {
+        println!("Pump is stopped");
+        self.is_on = false;
+        Ok(())
+    }
+
+    fn on(&mut self) -> Result<(), Error> {
+        println!("Pump is on");
+        self.is_on = true;
+        Ok(())
+    }
+
+    fn off(&mut self) -> Result<(), Error> {
+        println!("Pump is off");
+        self.is_on = false;
+        Ok(())
     }
 }

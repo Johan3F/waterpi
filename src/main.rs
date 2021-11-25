@@ -1,3 +1,5 @@
+mod controller;
+mod moisture_sensor;
 mod water_pump;
 
 use std::thread;
@@ -5,10 +7,11 @@ use std::time::Duration;
 
 use crossbeam::channel::{select, unbounded, Receiver};
 use ctrlc;
-use mcp3008::Mcp3008;
-use sysfs_gpio::Error;
+use failure::Error;
 
-use water_pump::WaterPump;
+use controller::Controller;
+use moisture_sensor::MoistureSensor;
+use water_pump::WaterPumpImpl;
 
 const READ_CHANNEL: u8 = 7;
 const SENSOR_POLLING_TIME: Duration = Duration::from_secs(1);
@@ -26,34 +29,28 @@ fn main() -> Result<(), Error> {
     })
     .expect("Error setting Ctrl-C handler");
 
-    let mcp3008 =
-        Mcp3008::new("/dev/spidev0.0").expect("Unable to establish connection with MCP3008");
-    let pump = WaterPump::new(PUMP_PIN).expect("Unable to initialize water pump");
+    let sensor = MoistureSensor::new(READ_CHANNEL)?;
+    let pump = WaterPumpImpl::new(PUMP_PIN)?;
+    let mut controller = Controller::new(WATERING_THRESHOLD, pump);
 
-    let sensor = start_reading(mcp3008, SENSOR_POLLING_TIME, READ_CHANNEL);
+    let sensor = start_reading(sensor, SENSOR_POLLING_TIME);
 
     loop {
         select! {
             recv(sensor) -> received =>{
                 match received {
                     Ok(value) => {
-                        println!("Sensor readings: {}", value);
-                        if value > WATERING_THRESHOLD {
-                            let _ = pump.on();
-                        } else {
-                            let _ = pump.off();
-                        }
+                        controller.new_reading(value)?;
                     }
                     Err(_) => {
-                        let _ = pump.stop();
+                        controller.stop();
                         break;
                     }
                 }
             },
             recv(quit_receiver) -> _ => {
                 println!("\nStopping system...");
-                let _ = pump.stop();
-                println!("\t- Pump stopped");
+                controller.stop();
                 break;
             }
         }
@@ -62,10 +59,10 @@ fn main() -> Result<(), Error> {
     Ok(())
 }
 
-fn start_reading(mut mcp3008: Mcp3008, polling_time: Duration, channel: u8) -> Receiver<u16> {
+fn start_reading(mut sensor: MoistureSensor, polling_time: Duration) -> Receiver<u16> {
     let (sender, receiver) = unbounded();
     std::thread::spawn(move || loop {
-        match mcp3008.read_adc(channel) {
+        match sensor.read() {
             Ok(read_value) => {
                 if let Err(_) = sender.send(read_value) {
                     println!("Unable to get value this iteration. Waiting for next");
