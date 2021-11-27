@@ -1,5 +1,7 @@
 use sysfs_gpio::{Direction, Error, Pin};
 
+use crate::metrics::*;
+
 pub trait WaterPump: Send {
     fn stop(&mut self) -> Result<(), Error>;
     fn on(&mut self) -> Result<(), Error>;
@@ -16,6 +18,7 @@ impl WaterPumpImpl {
         water_pump.export()?;
         water_pump.set_direction(Direction::Out)?;
         water_pump.set_value(0)?;
+        PUMP_ON.set(0.0);
 
         Ok(WaterPumpImpl { pump: water_pump })
     }
@@ -27,10 +30,12 @@ impl WaterPump for WaterPumpImpl {
     }
 
     fn on(&mut self) -> Result<(), Error> {
+        PUMP_ON.set(1.0);
         self.pump.set_value(1)
     }
 
     fn off(&mut self) -> Result<(), Error> {
+        PUMP_ON.set(0.0);
         self.pump.set_value(0)
     }
 }
