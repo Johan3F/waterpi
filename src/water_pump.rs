@@ -36,12 +36,12 @@ impl WaterPump for WaterPumpImpl {
 }
 
 pub struct WaterPumpMock {
-    is_on: bool,
+    pub is_on: bool,
 }
 
 impl WaterPumpMock {
-    pub fn new(_pin: u64) -> Result<WaterPumpMock, Error> {
-        Ok(WaterPumpMock { is_on: false })
+    pub fn new(_pin: u64) -> WaterPumpMock {
+        WaterPumpMock { is_on: false }
     }
 }
 

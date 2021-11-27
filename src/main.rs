@@ -2,8 +2,7 @@ mod controller;
 mod moisture_sensor;
 mod water_pump;
 
-use std::thread;
-use std::time::Duration;
+use std::{cell::RefCell, rc::Rc, thread, time::Duration};
 
 use crossbeam::channel::{select, unbounded, Receiver};
 use ctrlc;
@@ -31,6 +30,7 @@ fn main() -> Result<(), Error> {
 
     let sensor = MoistureSensor::new(READ_CHANNEL)?;
     let pump = WaterPumpImpl::new(PUMP_PIN)?;
+    let pump = Rc::new(RefCell::new(pump));
     let mut controller = Controller::new(WATERING_THRESHOLD, pump);
 
     let sensor = start_reading(sensor, SENSOR_POLLING_TIME);
