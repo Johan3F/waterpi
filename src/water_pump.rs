@@ -52,19 +52,16 @@ impl WaterPumpMock {
 
 impl WaterPump for WaterPumpMock {
     fn stop(&mut self) -> Result<(), Error> {
-        println!("Pump is stopped");
         self.is_on = false;
         Ok(())
     }
 
     fn on(&mut self) -> Result<(), Error> {
-        println!("Pump is on");
         self.is_on = true;
         Ok(())
     }
 
     fn off(&mut self) -> Result<(), Error> {
-        println!("Pump is off");
         self.is_on = false;
         Ok(())
     }

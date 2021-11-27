@@ -8,7 +8,7 @@ use std::{cell::RefCell, rc::Rc, thread, time::Duration};
 use crossbeam::channel::{select, unbounded, Receiver};
 use ctrlc;
 use failure::Error;
-use log::info;
+use log::{error, info, warn};
 use prometheus::{self, default_registry, Encoder};
 use warp::{Filter, Rejection, Reply};
 
@@ -58,7 +58,7 @@ async fn main() -> Result<(), Error> {
                 }
             },
             recv(quit_receiver) -> _ => {
-                println!("\nStopping system...");
+                info!("\nStopping system...");
                 // controller.stop();
                 break;
             }
@@ -74,11 +74,11 @@ fn start_reading(mut sensor: MoistureSensor, polling_time: Duration) -> Receiver
         match sensor.read() {
             Ok(read_value) => {
                 if let Err(_) = sender.send(read_value) {
-                    println!("Unable to get value this iteration. Waiting for next");
+                    warn!("Unable to get value this iteration. Waiting for next");
                 }
             }
             Err(_) => {
-                println!("Unable to get value this iteration. Waiting for next");
+                error!("Unable to get value this iteration. Waiting for next");
             }
         };
         thread::sleep(polling_time);
@@ -98,12 +98,12 @@ async fn metrics_handler() -> Result<impl Reply, Rejection> {
 
     let mut buffer = Vec::new();
     if let Err(e) = encoder.encode(&default_registry().gather(), &mut buffer) {
-        eprintln!("could not encode custom metrics: {}", e);
+        error!("could not encode custom metrics: {}", e);
     };
     let res = match String::from_utf8(buffer.clone()) {
         Ok(v) => v,
         Err(e) => {
-            eprintln!("custom metrics could not be from_utf8'd: {}", e);
+            error!("custom metrics could not be from_utf8'd: {}", e);
             String::default()
         }
     };
