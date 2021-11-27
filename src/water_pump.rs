@@ -2,7 +2,15 @@ use sysfs_gpio::{Direction, Error, Pin};
 
 use crate::metrics::*;
 
-use super::WaterPump;
+#[cfg(test)]
+use mockall::{automock, predicate::*};
+
+#[cfg_attr(test, automock)]
+pub trait WaterPump: Send {
+    fn stop(&mut self) -> Result<(), Error>;
+    fn on(&mut self) -> Result<(), Error>;
+    fn off(&mut self) -> Result<(), Error>;
+}
 
 pub struct WaterPumpImpl {
     pump: Pin,

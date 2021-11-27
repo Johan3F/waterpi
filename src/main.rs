@@ -51,6 +51,13 @@ struct Configuration {
         default_value = "600"
     )]
     watering_threshold: u16,
+    #[structopt(
+        long = "watering_throttle",
+        env = "WATERING_THROTTLE",
+        help = "How often to allow watering in hours. To avoid watering too often",
+        default_value = "1"
+    )]
+    watering_throttle: u64,
 }
 
 #[tokio::main]
@@ -71,7 +78,11 @@ async fn main() -> Result<(), Error> {
     let sensor = MoistureSensor::new(config.sensor_channel)?;
     let pump = WaterPumpImpl::new(config.pump_pin)?;
     let pump = Rc::new(RefCell::new(pump));
-    let mut controller = Controller::new(config.watering_threshold, pump);
+    let mut controller = Controller::new(
+        config.watering_threshold,
+        Duration::from_secs(config.watering_throttle * 60 * 60),
+        pump,
+    );
 
     tokio::task::spawn(web_server());
 
