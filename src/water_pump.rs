@@ -45,7 +45,7 @@ pub struct WaterPumpMock {
 }
 
 impl WaterPumpMock {
-    pub fn new(_pin: u64) -> WaterPumpMock {
+    pub fn new() -> WaterPumpMock {
         WaterPumpMock { is_on: false }
     }
 }

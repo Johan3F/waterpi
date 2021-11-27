@@ -25,6 +25,8 @@ const SENSOR_POLLING_TIME: Duration = Duration::from_secs(1);
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
+    env_logger::builder().format_module_path(false).init();
+
     let (quit_sender, quit_receiver) = unbounded();
     let quit_sender_copy = quit_sender.clone();
     ctrlc::set_handler(move || {

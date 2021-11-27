@@ -54,7 +54,7 @@ mod test {
 
     #[test]
     fn test_controller() {
-        let mock_pump = Rc::new(RefCell::new(WaterPumpMock::new(0)));
+        let mock_pump = Rc::new(RefCell::new(WaterPumpMock::new()));
 
         let mut controller = Controller::new(600, mock_pump.clone());
 
