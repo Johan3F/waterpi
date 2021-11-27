@@ -7,9 +7,11 @@ use std::{cell::RefCell, rc::Rc, thread, time::Duration};
 
 use crossbeam::channel::{select, unbounded, Receiver};
 use ctrlc;
+use dotenv::dotenv;
 use failure::Error;
 use log::{error, info, warn};
 use prometheus::{self, default_registry, Encoder};
+use structopt::StructOpt;
 use warp::{Filter, Rejection, Reply};
 
 use controller::Controller;
@@ -17,15 +19,45 @@ use metrics::*;
 use moisture_sensor::MoistureSensor;
 use water_pump::WaterPumpImpl;
 
-const READ_CHANNEL: u8 = 7;
-const SENSOR_POLLING_TIME: Duration = Duration::from_secs(1);
-
-const PUMP_PIN: u64 = 4;
-const WATERING_THRESHOLD: u16 = 500;
+#[derive(StructOpt)]
+#[structopt(
+    name = "WaterPi configurations",
+    about = "Welcome to WaterPi! I'll read moisture level from a sensor connected with a MCP3008 and I react with a water pump"
+)]
+struct Configuration {
+    #[structopt(
+        long = "sensor_channel",
+        env = "SENSOR_CHANNEL",
+        help = "Channel in the MCP3008 that the sensor is connected"
+    )]
+    sensor_channel: u8,
+    #[structopt(
+        long = "sensor_polling_time",
+        env = "SENSOR_POLLING_TIME",
+        help = "Frequency to read sensor values. In seconds",
+        default_value = "1"
+    )]
+    sensor_polling_time_seconds: u64,
+    #[structopt(
+        long = "pump_pin",
+        env = "PUMP_PIN",
+        help = "GPIO pin where the pump is connected"
+    )]
+    pump_pin: u64,
+    #[structopt(
+        long = "watering_threshold",
+        env = "WATERING_THRESHOLD",
+        help = "Threshold to consider a good time for watering the plant",
+        default_value = "600"
+    )]
+    watering_threshold: u16,
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
+    let _ = dotenv();
     env_logger::builder().format_module_path(false).init();
+    let config = Configuration::from_args();
 
     let (quit_sender, quit_receiver) = unbounded();
     let quit_sender_copy = quit_sender.clone();
@@ -36,14 +68,17 @@ async fn main() -> Result<(), Error> {
     })
     .expect("Error setting Ctrl-C handler");
 
-    let sensor = MoistureSensor::new(READ_CHANNEL)?;
-    let pump = WaterPumpImpl::new(PUMP_PIN)?;
+    let sensor = MoistureSensor::new(config.sensor_channel)?;
+    let pump = WaterPumpImpl::new(config.pump_pin)?;
     let pump = Rc::new(RefCell::new(pump));
-    let mut controller = Controller::new(WATERING_THRESHOLD, pump);
+    let mut controller = Controller::new(config.watering_threshold, pump);
 
     tokio::task::spawn(web_server());
 
-    let sensor = start_reading(sensor, SENSOR_POLLING_TIME);
+    let sensor = start_reading(
+        sensor,
+        Duration::from_secs(config.sensor_polling_time_seconds),
+    );
 
     loop {
         select! {
