@@ -12,16 +12,16 @@ use log::{error, info, warn};
 use prometheus::{self, default_registry, Encoder};
 use warp::{Filter, Rejection, Reply};
 
-// use controller::Controller;
+use controller::Controller;
 use metrics::*;
 use moisture_sensor::MoistureSensor;
-// use water_pump::WaterPumpImpl;
+use water_pump::WaterPumpImpl;
 
 const READ_CHANNEL: u8 = 7;
 const SENSOR_POLLING_TIME: Duration = Duration::from_secs(1);
 
-// const PUMP_PIN: u64 = 4;
-// const WATERING_THRESHOLD: u16 = 500;
+const PUMP_PIN: u64 = 4;
+const WATERING_THRESHOLD: u16 = 500;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -37,9 +37,9 @@ async fn main() -> Result<(), Error> {
     .expect("Error setting Ctrl-C handler");
 
     let sensor = MoistureSensor::new(READ_CHANNEL)?;
-    // let pump = WaterPumpImpl::new(PUMP_PIN)?;
-    // let pump = Rc::new(RefCell::new(pump));
-    // let mut controller = Controller::new(WATERING_THRESHOLD, pump);
+    let pump = WaterPumpImpl::new(PUMP_PIN)?;
+    let pump = Rc::new(RefCell::new(pump));
+    let mut controller = Controller::new(WATERING_THRESHOLD, pump);
 
     tokio::task::spawn(web_server());
 
@@ -51,17 +51,17 @@ async fn main() -> Result<(), Error> {
                 match received {
                     Ok(value) => {
                         MOISTURE_LEVEL.set(value as f64);
-                        // controller.new_reading(value)?;
+                        controller.new_reading(value)?;
                     }
                     Err(_) => {
-                        // controller.stop();
+                        controller.stop();
                         break;
                     }
                 }
             },
             recv(quit_receiver) -> _ => {
                 info!("\nStopping system...");
-                // controller.stop();
+                controller.stop();
                 break;
             }
         }

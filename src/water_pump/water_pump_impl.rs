@@ -2,11 +2,7 @@ use sysfs_gpio::{Direction, Error, Pin};
 
 use crate::metrics::*;
 
-pub trait WaterPump: Send {
-    fn stop(&mut self) -> Result<(), Error>;
-    fn on(&mut self) -> Result<(), Error>;
-    fn off(&mut self) -> Result<(), Error>;
-}
+use super::WaterPump;
 
 pub struct WaterPumpImpl {
     pump: Pin,
@@ -37,32 +33,5 @@ impl WaterPump for WaterPumpImpl {
     fn off(&mut self) -> Result<(), Error> {
         PUMP_ON.set(0.0);
         self.pump.set_value(0)
-    }
-}
-
-pub struct WaterPumpMock {
-    pub is_on: bool,
-}
-
-impl WaterPumpMock {
-    pub fn new() -> WaterPumpMock {
-        WaterPumpMock { is_on: false }
-    }
-}
-
-impl WaterPump for WaterPumpMock {
-    fn stop(&mut self) -> Result<(), Error> {
-        self.is_on = false;
-        Ok(())
-    }
-
-    fn on(&mut self) -> Result<(), Error> {
-        self.is_on = true;
-        Ok(())
-    }
-
-    fn off(&mut self) -> Result<(), Error> {
-        self.is_on = false;
-        Ok(())
     }
 }
