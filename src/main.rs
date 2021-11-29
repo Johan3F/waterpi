@@ -58,6 +58,12 @@ struct Configuration {
         default_value = "1"
     )]
     watering_throttle: u64,
+    #[structopt(
+        long = "dry_run",
+        env = "DRY_RUN",
+        help = "Indicates if the pump should be enabled or not"
+    )]
+    dry_run: bool,
 }
 
 #[tokio::main]
@@ -76,7 +82,7 @@ async fn main() -> Result<(), Error> {
     .expect("Error setting Ctrl-C handler");
 
     let sensor = MoistureSensor::new(config.sensor_channel)?;
-    let pump = WaterPumpImpl::new(config.pump_pin)?;
+    let pump = WaterPumpImpl::new(config.pump_pin, config.dry_run)?;
     let pump = Rc::new(RefCell::new(pump));
     let mut controller = Controller::new(
         config.watering_threshold,
