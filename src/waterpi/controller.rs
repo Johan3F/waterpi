@@ -63,7 +63,7 @@ impl Controller {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::water_pump::MockWaterPump;
+    use crate::waterpi::water_pump::MockWaterPump;
     use std::thread::sleep;
 
     #[test]

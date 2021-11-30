@@ -1,6 +1,6 @@
 use sysfs_gpio::{Direction, Error, Pin};
 
-use crate::metrics::*;
+use crate::waterpi::metrics::*;
 
 #[cfg(test)]
 use mockall::{automock, predicate::*};
