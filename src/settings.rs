@@ -18,16 +18,7 @@ struct Configuration {
 
 pub fn get_settings() -> Result<(), Error> {
     let mut settings = config::Config::default();
-    settings
-        // Add in `./Settings.toml`
-        .merge(config::File::with_name("config"))
-        .unwrap()
-        // Add in settings from the environment (with a prefix of APP)
-        // Eg.. `APP_DEBUG=1 ./target/app` would set the `debug` key
-        .merge(config::Environment::default())
-        .unwrap();
+    settings.merge(config::File::with_name("config")).unwrap();
 
-    // Print out our settings (as a HashMap)
-    println!("{:?}", settings.try_into::<Configuration>().unwrap());
     Ok(())
 }
