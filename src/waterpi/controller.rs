@@ -4,7 +4,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use failure::Error;
+use anyhow::Result;
 use log::info;
 
 use super::water_pump::WaterPump;
@@ -26,7 +26,7 @@ impl Controller {
         }
     }
 
-    pub fn new_reading(&mut self, reading: u16) -> Result<(), Error> {
+    pub fn new_reading(&mut self, reading: u16) -> Result<()> {
         info!("New reading: {}", reading);
         if reading > self.threshold {
             self.threshold_breached();

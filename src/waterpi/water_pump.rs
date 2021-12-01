@@ -1,4 +1,5 @@
-use sysfs_gpio::{Direction, Error, Pin};
+use anyhow::{Context, Result};
+use sysfs_gpio::{Direction, Pin};
 
 use crate::waterpi::metrics::*;
 
@@ -7,9 +8,9 @@ use mockall::{automock, predicate::*};
 
 #[cfg_attr(test, automock)]
 pub trait WaterPump: Send {
-    fn stop(&mut self) -> Result<(), Error>;
-    fn on(&mut self) -> Result<(), Error>;
-    fn off(&mut self) -> Result<(), Error>;
+    fn stop(&mut self) -> Result<()>;
+    fn on(&mut self) -> Result<()>;
+    fn off(&mut self) -> Result<()>;
 }
 
 pub struct WaterPumpImpl {
@@ -18,7 +19,7 @@ pub struct WaterPumpImpl {
 }
 
 impl WaterPumpImpl {
-    pub fn new(pin: u64, dry_run: bool) -> Result<WaterPumpImpl, Error> {
+    pub fn new(pin: u64, dry_run: bool) -> Result<WaterPumpImpl> {
         let water_pump = Pin::new(pin);
         water_pump.export()?;
         water_pump.set_direction(Direction::Out)?;
@@ -33,26 +34,30 @@ impl WaterPumpImpl {
 }
 
 impl WaterPump for WaterPumpImpl {
-    fn stop(&mut self) -> Result<(), Error> {
+    fn stop(&mut self) -> Result<()> {
         if self.dry_run {
             return Ok(());
         }
         self.off()
     }
 
-    fn on(&mut self) -> Result<(), Error> {
+    fn on(&mut self) -> Result<()> {
         PUMP_ON.set(1.0);
         if self.dry_run {
             return Ok(());
         }
-        self.pump.set_value(1)
+        self.pump
+            .set_value(1)
+            .with_context(|| "Unable to turn the pump on".to_owned())
     }
 
-    fn off(&mut self) -> Result<(), Error> {
+    fn off(&mut self) -> Result<()> {
         PUMP_ON.set(0.0);
         if self.dry_run {
             return Ok(());
         }
-        self.pump.set_value(0)
+        self.pump
+            .set_value(0)
+            .with_context(|| "Unable to turn the pump off".to_owned())
     }
 }

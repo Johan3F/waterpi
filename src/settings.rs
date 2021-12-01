@@ -1,24 +1,26 @@
-use failure::Error;
+use anyhow::{Context, Result};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
-struct SensorPumpPair {
-    sensor_channel: u8,
-    sensor_polling_time_seconds: u64,
-    watering_threshold: u16,
-    watering_throttle: u64,
-    pump_pin: u64,
-    dry_run: bool,
+pub struct SensorPumpPair {
+    pub sensor_channel: u8,
+    pub sensor_polling_time_seconds: u64,
+    pub watering_threshold: u16,
+    pub watering_throttle: u64,
+    pub pump_pin: u64,
+    pub dry_run: bool,
 }
 
 #[derive(Debug, Deserialize)]
-struct Configuration {
-    sensor_pump: Vec<SensorPumpPair>,
+pub struct Configuration {
+    pub sensors_pumps: Vec<SensorPumpPair>,
 }
 
-pub fn get_settings() -> Result<(), Error> {
+pub fn get_settings() -> Result<Configuration> {
     let mut settings = config::Config::default();
     settings.merge(config::File::with_name("config")).unwrap();
 
-    Ok(())
+    settings
+        .try_into::<Configuration>()
+        .with_context(|| format!("Failed to read configuration"))
 }
