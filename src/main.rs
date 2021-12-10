@@ -34,7 +34,7 @@ async fn main() -> Result<()> {
     sel.recv(&quit_receiver);
     let mut controllers = vec![];
     let mut sensors = vec![];
-    for sensor_pump in config.sensors_pumps {
+    for sensor_pump in &config.sensors_pumps {
         println!("{:?}", sensor_pump);
         let sensor = MoistureSensor::new(sensor_pump.sensor_channel)?;
         let pump = WaterPumpImpl::new(sensor_pump.pump_pin, sensor_pump.dry_run)?;
@@ -70,7 +70,12 @@ async fn main() -> Result<()> {
 
         match operation.recv(&sensor) {
             Ok(value) => {
-                MOISTURE_LEVEL.set(value as f64);
+                MOISTURE_LEVEL
+                    .with_label_values(&[&format!(
+                        "{}",
+                        config.sensors_pumps[index].sensor_channel
+                    )])
+                    .set(value as f64);
                 controller.new_reading(value)?;
             }
             Err(_) => {
