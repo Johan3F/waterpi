@@ -11,7 +11,7 @@ use prometheus::{self, default_registry, Encoder};
 use warp::{Filter, Rejection, Reply};
 
 use waterpi::controller::Controller;
-use waterpi::metrics::*;
+use waterpi::metrics::MOISTURE_LEVELS;
 use waterpi::moisture_sensor::MoistureSensor;
 use waterpi::water_pump::WaterPumpImpl;
 
@@ -70,11 +70,8 @@ async fn main() -> Result<()> {
 
         match operation.recv(&sensor) {
             Ok(value) => {
-                MOISTURE_LEVEL
-                    .with_label_values(&[&format!(
-                        "{}",
-                        config.sensors_pumps[index].sensor_channel
-                    )])
+                MOISTURE_LEVELS
+                    .with_label_values(&[&config.sensors_pumps[index].sensor_channel.to_string()])
                     .set(value as f64);
                 controller.new_reading(value)?;
             }

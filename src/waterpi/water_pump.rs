@@ -24,7 +24,9 @@ impl WaterPumpImpl {
         water_pump.export()?;
         water_pump.set_direction(Direction::Out)?;
         water_pump.set_value(0)?;
-        PUMP_ON.set(0.0);
+        PUMP_ON
+            .with_label_values(&[&water_pump.get_pin().to_string()])
+            .set(0.0);
 
         Ok(WaterPumpImpl {
             pump: water_pump,
@@ -42,7 +44,9 @@ impl WaterPump for WaterPumpImpl {
     }
 
     fn on(&mut self) -> Result<()> {
-        PUMP_ON.set(1.0);
+        PUMP_ON
+            .with_label_values(&[&self.pump.get_pin().to_string()])
+            .set(1.0);
         if self.dry_run {
             return Ok(());
         }
@@ -52,7 +56,9 @@ impl WaterPump for WaterPumpImpl {
     }
 
     fn off(&mut self) -> Result<()> {
-        PUMP_ON.set(0.0);
+        PUMP_ON
+            .with_label_values(&[&self.pump.get_pin().to_string()])
+            .set(0.0);
         if self.dry_run {
             return Ok(());
         }
