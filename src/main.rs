@@ -1,10 +1,10 @@
 mod settings;
 mod waterpi;
 
-use std::{cell::RefCell, collections::HashMap, rc::Rc, thread, time::Duration};
+use std::{cell::RefCell, rc::Rc, thread, time::Duration};
 
 use anyhow::{Context, Result};
-use crossbeam::channel::{select, unbounded, Receiver};
+use crossbeam::channel::{unbounded, Receiver, Select};
 use ctrlc;
 use log::{error, info, warn};
 use prometheus::{self, default_registry, Encoder};
@@ -28,48 +28,60 @@ async fn main() -> Result<()> {
             .expect("Could not send quit signal...");
     })
     .with_context(|| format!("Error setting Ctrl-C handler"))?;
+    tokio::task::spawn(web_server());
 
+    let mut sel = Select::new();
+    sel.recv(&quit_receiver);
+    let mut controllers = vec![];
+    let mut sensors = vec![];
     for sensor_pump in config.sensors_pumps {
         println!("{:?}", sensor_pump);
+        let sensor = MoistureSensor::new(sensor_pump.sensor_channel)?;
+        let pump = WaterPumpImpl::new(sensor_pump.pump_pin, sensor_pump.dry_run)?;
+        let pump = Rc::new(RefCell::new(pump));
+        let controller = Controller::new(
+            sensor_pump.watering_threshold,
+            Duration::from_secs(sensor_pump.watering_throttle * 60 * 60),
+            pump,
+        );
+        let sensor = start_reading(
+            sensor,
+            Duration::from_secs(sensor_pump.sensor_polling_time_seconds),
+        );
+
+        controllers.push(controller);
+        sensors.push(sensor);
     }
-    // let sensor = MoistureSensor::new(config.sensor_channel)?;
-    // let pump = WaterPumpImpl::new(config.pump_pin, config.dry_run)?;
-    // let pump = Rc::new(RefCell::new(pump));
-    // let mut controller = Controller::new(
-    //     config.watering_threshold,
-    //     Duration::from_secs(config.watering_throttle * 60 * 60),
-    //     pump,
-    // );
 
-    // tokio::task::spawn(web_server());
+    for sensor in &sensors {
+        sel.recv(&sensor);
+    }
 
-    // let sensor = start_reading(
-    //     sensor,
-    //     Duration::from_secs(config.sensor_polling_time_seconds),
-    // );
+    loop {
+        let operation = sel.select();
+        if operation.index() == 0 {
+            info!("\nStopping system...");
+            break;
+        }
 
-    // loop {
-    //     select! {
-    //         recv(sensor) -> received =>{
-    //             match received {
-    //                 Ok(value) => {
-    //                     MOISTURE_LEVEL.set(value as f64);
-    //                     controller.new_reading(value)?;
-    //                 }
-    //                 Err(_) => {
-    //                     controller.stop();
-    //                     break;
-    //                 }
-    //             }
-    //         },
-    //         recv(quit_receiver) -> _ => {
-    //             info!("\nStopping system...");
-    //             controller.stop();
-    //             break;
-    //         }
-    //     }
-    // }
+        let index = operation.index() - 1;
+        let sensor = &sensors[index];
+        let controller = &mut controllers[index];
 
+        match operation.recv(&sensor) {
+            Ok(value) => {
+                MOISTURE_LEVEL.set(value as f64);
+                controller.new_reading(value)?;
+            }
+            Err(_) => {
+                break;
+            }
+        }
+    }
+
+    for mut controller in controllers {
+        controller.stop();
+    }
     Ok(())
 }
 

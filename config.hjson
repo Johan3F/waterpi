@@ -8,21 +8,5 @@
             watering_throttle: 24
             dry_run: true
         }
-        {
-            sensor_channel: 0
-            sensor_polling_time_seconds: 0
-            pump_pin: 0
-            watering_threshold: 0
-            watering_throttle: 0
-            dry_run: true
-        }
-        {
-            sensor_channel: 1
-            sensor_polling_time_seconds: 1
-            pump_pin: 1
-            watering_threshold: 1
-            watering_throttle: 1
-            dry_run: true
-        }
     ]
 }
