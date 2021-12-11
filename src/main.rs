@@ -11,7 +11,6 @@ use prometheus::{self, default_registry, Encoder};
 use warp::{Filter, Rejection, Reply};
 
 use waterpi::controller::Controller;
-use waterpi::metrics::MOISTURE_LEVELS;
 use waterpi::moisture_sensor::MoistureSensor;
 use waterpi::water_pump::WaterPumpImpl;
 
@@ -19,7 +18,8 @@ use waterpi::water_pump::WaterPumpImpl;
 async fn main() -> Result<()> {
     env_logger::builder()
         .format_module_path(false)
-        .filter(None, LevelFilter::Debug)
+        .filter_level(LevelFilter::Info)
+        .parse_default_env()
         .init();
     let config = settings::get_settings()?;
 
@@ -82,9 +82,6 @@ async fn main() -> Result<()> {
 
         match operation.recv(&sensor) {
             Ok(value) => {
-                MOISTURE_LEVELS
-                    .with_label_values(&[&config.sensors_pumps[index].sensor_channel.to_string()])
-                    .set(value as f64);
                 controller.new_reading(value)?;
             }
             Err(_) => {
