@@ -12,7 +12,7 @@ use super::water_pump::WaterPump;
 pub struct Controller {
     name: String,
     threshold: u16,
-    throttle: Duration,
+    watering_throttle: Duration,
     watering_duration: Duration,
     pump: Rc<RefCell<dyn WaterPump>>,
     last_water_time: Option<Instant>,
@@ -22,14 +22,14 @@ impl Controller {
     pub fn new(
         name: String,
         threshold: u16,
-        throttle: Duration,
+        watering_throttle: Duration,
         watering_duration: Duration,
         pump: Rc<RefCell<dyn WaterPump>>,
     ) -> Controller {
         Controller {
             name,
             threshold,
-            throttle,
+            watering_throttle,
             watering_duration,
             pump,
             last_water_time: None,
@@ -57,7 +57,7 @@ impl Controller {
                 let _ = self.pump.borrow_mut().on();
             }
             Some(last_water_time) => {
-                if last_water_time.elapsed() >= self.throttle {
+                if last_water_time.elapsed() >= self.watering_throttle {
                     self.last_water_time = Some(Instant::now());
                     let _ = self.pump.borrow_mut().on();
                 }
@@ -84,7 +84,7 @@ mod test {
     use std::thread::sleep;
 
     #[test]
-    fn test_controller_throttle_not_expired() {
+    fn test_controller_watering_throttle_not_expired() {
         let mock_pump = Rc::new(RefCell::new(MockWaterPump::new()));
 
         let mut controller = Controller::new(
@@ -120,7 +120,7 @@ mod test {
     }
 
     #[test]
-    fn test_controller_throttle_expired() {
+    fn test_controller_watering_throttle_expired() {
         let mock_pump = Rc::new(RefCell::new(MockWaterPump::new()));
 
         let mut controller = Controller::new(
@@ -146,6 +146,32 @@ mod test {
             .expect_on()
             .times(1)
             .returning(|| Ok(()));
+        let result = controller.new_reading(601);
+        assert_eq!(result.is_ok(), true);
+
+        mock_pump.borrow_mut().checkpoint();
+    }
+
+    #[test]
+    fn test_controller_watering_duration() {
+        let mock_pump = Rc::new(RefCell::new(MockWaterPump::new()));
+
+        let mut controller = Controller::new(
+            "test".to_owned(),
+            600,
+            Duration::from_millis(100),
+            Duration::from_millis(100),
+            mock_pump.clone(),
+        );
+
+        mock_pump
+            .borrow_mut()
+            .expect_on()
+            .times(1)
+            .returning(|| Ok(()));
+        let result = controller.new_reading(601);
+        assert_eq!(result.is_ok(), true);
+
         let result = controller.new_reading(601);
         assert_eq!(result.is_ok(), true);
 
