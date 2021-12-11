@@ -1,13 +1,24 @@
 {
     sensors_pumps: [
         {
-            name: "First controller"
+            name: "Left"
             sensor_channel: 7
             sensor_polling_time_seconds: 1
             pump_pin: 4
-            watering_threshold: 600
-            watering_throttle: 24
-            dry_run: true
+            watering_threshold: 525
+            watering_throttle_seconds: 86400 // 24 hours
+            watering_duration_seconds: 10
+            dry_run: false
+        }
+        {
+            name: "Right"
+            sensor_channel: 6
+            sensor_polling_time_seconds: 1
+            pump_pin: 3
+            watering_threshold: 525
+            watering_throttle_seconds: 86400 // 24 hours
+            watering_duration_seconds: 10
+            dry_run: false
         }
     ]
 }
