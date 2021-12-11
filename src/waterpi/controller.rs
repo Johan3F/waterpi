@@ -12,15 +12,22 @@ use super::water_pump::WaterPump;
 pub struct Controller {
     threshold: u16,
     throttle: Duration,
+    watering_duration: Duration,
     pump: Rc<RefCell<dyn WaterPump>>,
     last_water_time: Option<Instant>,
 }
 
 impl Controller {
-    pub fn new(threshold: u16, throttle: Duration, pump: Rc<RefCell<dyn WaterPump>>) -> Controller {
+    pub fn new(
+        threshold: u16,
+        throttle: Duration,
+        watering_duration: Duration,
+        pump: Rc<RefCell<dyn WaterPump>>,
+    ) -> Controller {
         Controller {
             threshold,
             throttle,
+            watering_duration,
             pump,
             last_water_time: None,
         }
@@ -56,7 +63,14 @@ impl Controller {
     }
 
     fn below_threshold(&mut self) {
-        let _ = self.pump.borrow_mut().off();
+        match self.last_water_time {
+            None => (),
+            Some(last_water_time) => {
+                if last_water_time.elapsed() >= self.watering_duration {
+                    let _ = self.pump.borrow_mut().off();
+                }
+            }
+        };
     }
 }
 
@@ -70,13 +84,13 @@ mod test {
     fn test_controller_throttle_not_expired() {
         let mock_pump = Rc::new(RefCell::new(MockWaterPump::new()));
 
-        let mut controller = Controller::new(600, Duration::from_millis(200), mock_pump.clone());
+        let mut controller = Controller::new(
+            600,
+            Duration::from_millis(200),
+            Duration::from_nanos(1),
+            mock_pump.clone(),
+        );
 
-        mock_pump
-            .borrow_mut()
-            .expect_off()
-            .times(1)
-            .returning(|| Ok(()));
         let result = controller.new_reading(500);
         assert_eq!(result.is_ok(), true);
 
@@ -91,6 +105,7 @@ mod test {
         let _result = controller.new_reading(601);
         assert_eq!(result.is_ok(), true);
 
+        std::thread::sleep(std::time::Duration::from_nanos(1));
         mock_pump
             .borrow_mut()
             .expect_off()
@@ -104,7 +119,12 @@ mod test {
     fn test_controller_throttle_expired() {
         let mock_pump = Rc::new(RefCell::new(MockWaterPump::new()));
 
-        let mut controller = Controller::new(600, Duration::from_millis(100), mock_pump.clone());
+        let mut controller = Controller::new(
+            600,
+            Duration::from_millis(100),
+            Duration::from_nanos(1),
+            mock_pump.clone(),
+        );
 
         mock_pump
             .borrow_mut()

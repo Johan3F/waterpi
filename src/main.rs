@@ -6,7 +6,7 @@ use std::{cell::RefCell, rc::Rc, thread, time::Duration};
 use anyhow::{Context, Result};
 use crossbeam::channel::{unbounded, Receiver, Select};
 use ctrlc;
-use log::{error, info, warn};
+use log::{error, info, warn, LevelFilter};
 use prometheus::{self, default_registry, Encoder};
 use warp::{Filter, Rejection, Reply};
 
@@ -17,7 +17,10 @@ use waterpi::water_pump::WaterPumpImpl;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    env_logger::builder().format_module_path(false).init();
+    env_logger::builder()
+        .format_module_path(false)
+        .filter(None, LevelFilter::Debug)
+        .init();
     let config = settings::get_settings()?;
 
     let (quit_sender, quit_receiver) = unbounded();
@@ -28,20 +31,25 @@ async fn main() -> Result<()> {
             .expect("Could not send quit signal...");
     })
     .with_context(|| format!("Error setting Ctrl-C handler"))?;
-    tokio::task::spawn(web_server());
+    web_server();
 
     let mut sel = Select::new();
     sel.recv(&quit_receiver);
     let mut controllers = vec![];
     let mut sensors = vec![];
+    info!("Initializing sensor pump pairs");
     for sensor_pump in &config.sensors_pumps {
-        println!("{:?}", sensor_pump);
+        info!(
+            "\t First: sensor channel {}. Pump pin {}",
+            sensor_pump.sensor_channel, sensor_pump.pump_pin
+        );
         let sensor = MoistureSensor::new(sensor_pump.sensor_channel)?;
         let pump = WaterPumpImpl::new(sensor_pump.pump_pin, sensor_pump.dry_run)?;
         let pump = Rc::new(RefCell::new(pump));
         let controller = Controller::new(
             sensor_pump.watering_threshold,
-            Duration::from_secs(sensor_pump.watering_throttle * 60 * 60),
+            Duration::from_secs(sensor_pump.watering_throttle_seconds),
+            Duration::from_secs(sensor_pump.watering_duration_seconds),
             pump,
         );
         let sensor = start_reading(
@@ -52,14 +60,17 @@ async fn main() -> Result<()> {
         controllers.push(controller);
         sensors.push(sensor);
     }
+    info!("  Done!");
 
     for sensor in &sensors {
-        sel.recv(&sensor);
+        sel.recv(sensor);
     }
 
+    info!("Starting main loop");
     loop {
         let operation = sel.select();
         if operation.index() == 0 {
+            let _ = operation.recv(&quit_receiver);
             info!("\nStopping system...");
             break;
         }
@@ -81,6 +92,7 @@ async fn main() -> Result<()> {
         }
     }
 
+    info!("Ending program");
     for mut controller in controllers {
         controller.stop();
     }
@@ -106,10 +118,10 @@ fn start_reading(mut sensor: MoistureSensor, polling_time: Duration) -> Receiver
     receiver
 }
 
-async fn web_server() {
+fn web_server() {
     let metrics_route = warp::path!("metrics").and_then(metrics_handler);
     info!("Serving metrics on port '8080'. Endpoint '/metrics'");
-    warp::serve(metrics_route).run(([0, 0, 0, 0], 8080)).await;
+    tokio::task::spawn(warp::serve(metrics_route).run(([0, 0, 0, 0], 8080)));
 }
 
 async fn metrics_handler() -> Result<impl Reply, Rejection> {

@@ -6,7 +6,8 @@ pub struct SensorPumpPair {
     pub sensor_channel: u8,
     pub sensor_polling_time_seconds: u64,
     pub watering_threshold: u16,
-    pub watering_throttle: u64,
+    pub watering_throttle_seconds: u64,
+    pub watering_duration_seconds: u64,
     pub pump_pin: u64,
     pub dry_run: bool,
 }
