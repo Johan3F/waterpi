@@ -47,6 +47,7 @@ async fn main() -> Result<()> {
         let pump = WaterPumpImpl::new(sensor_pump.pump_pin, sensor_pump.dry_run)?;
         let pump = Rc::new(RefCell::new(pump));
         let controller = Controller::new(
+            sensor_pump.name.clone(),
             sensor_pump.watering_threshold,
             Duration::from_secs(sensor_pump.watering_throttle_seconds),
             Duration::from_secs(sensor_pump.watering_duration_seconds),

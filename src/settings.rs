@@ -3,6 +3,7 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct SensorPumpPair {
+    pub name: String,
     pub sensor_channel: u8,
     pub sensor_polling_time_seconds: u64,
     pub watering_threshold: u16,

@@ -10,6 +10,7 @@ use log::info;
 use super::water_pump::WaterPump;
 
 pub struct Controller {
+    name: String,
     threshold: u16,
     throttle: Duration,
     watering_duration: Duration,
@@ -19,12 +20,14 @@ pub struct Controller {
 
 impl Controller {
     pub fn new(
+        name: String,
         threshold: u16,
         throttle: Duration,
         watering_duration: Duration,
         pump: Rc<RefCell<dyn WaterPump>>,
     ) -> Controller {
         Controller {
+            name,
             threshold,
             throttle,
             watering_duration,
@@ -34,7 +37,7 @@ impl Controller {
     }
 
     pub fn new_reading(&mut self, reading: u16) -> Result<()> {
-        info!("New reading: {}", reading);
+        info!("New reading for {}: {}", self.name, reading);
         if reading > self.threshold {
             self.threshold_breached();
         } else {
@@ -85,6 +88,7 @@ mod test {
         let mock_pump = Rc::new(RefCell::new(MockWaterPump::new()));
 
         let mut controller = Controller::new(
+            "test".to_owned(),
             600,
             Duration::from_millis(200),
             Duration::from_nanos(1),
@@ -120,6 +124,7 @@ mod test {
         let mock_pump = Rc::new(RefCell::new(MockWaterPump::new()));
 
         let mut controller = Controller::new(
+            "test".to_owned(),
             600,
             Duration::from_millis(100),
             Duration::from_nanos(1),

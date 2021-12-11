@@ -1,6 +1,7 @@
 {
     sensors_pumps: [
         {
+            name: "First controller"
             sensor_channel: 7
             sensor_polling_time_seconds: 1
             pump_pin: 4
