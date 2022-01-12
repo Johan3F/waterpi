@@ -70,8 +70,7 @@ impl Controller {
                 if last_water_time.elapsed() >= self.watering_throttle {
                     self.last_water_time = Some(Instant::now());
                     let _ = self.pump.borrow_mut().on();
-                }
-                if last_water_time.elapsed() >= self.watering_duration {
+                } else if last_water_time.elapsed() >= self.watering_duration {
                     let _ = self.pump.borrow_mut().off();
                 }
             }
@@ -203,6 +202,84 @@ mod test {
 
         std::thread::sleep(Duration::from_millis(100));
 
+        mock_pump
+            .borrow_mut()
+            .expect_on()
+            .times(0)
+            .returning(|| Ok(()));
+        mock_pump
+            .borrow_mut()
+            .expect_off()
+            .times(1)
+            .returning(|| Ok(()));
+        let result = controller.new_reading(601);
+        assert_eq!(result.is_ok(), true);
+        mock_pump.borrow_mut().checkpoint();
+    }
+
+    #[test]
+    fn test_controller_watering_again_after_watering_throttle() {
+        let mock_pump = Rc::new(RefCell::new(MockWaterPump::new()));
+
+        let mut controller = Controller::new(
+            "test".to_owned(),
+            600,
+            Duration::from_millis(1000),
+            Duration::from_millis(100),
+            mock_pump.clone(),
+        );
+
+        // Initial on
+        mock_pump
+            .borrow_mut()
+            .expect_on()
+            .times(1)
+            .returning(|| Ok(()));
+        mock_pump
+            .borrow_mut()
+            .expect_off()
+            .times(0)
+            .returning(|| Ok(()));
+        let result = controller.new_reading(601);
+        assert_eq!(result.is_ok(), true);
+        let result = controller.new_reading(601);
+        assert_eq!(result.is_ok(), true);
+        mock_pump.borrow_mut().checkpoint();
+
+        // Off after watering
+        std::thread::sleep(Duration::from_millis(100));
+        mock_pump
+            .borrow_mut()
+            .expect_on()
+            .times(0)
+            .returning(|| Ok(()));
+        mock_pump
+            .borrow_mut()
+            .expect_off()
+            .times(1)
+            .returning(|| Ok(()));
+        let result = controller.new_reading(601);
+        assert_eq!(result.is_ok(), true);
+        mock_pump.borrow_mut().checkpoint();
+
+        // Back on after watering throttle
+        std::thread::sleep(Duration::from_millis(1100));
+        mock_pump
+            .borrow_mut()
+            .expect_on()
+            .times(1)
+            .returning(|| Ok(()));
+        mock_pump
+            .borrow_mut()
+            .expect_off()
+            .times(0)
+            .returning(|| Ok(()));
+        let result = controller.new_reading(601);
+        assert_eq!(result.is_ok(), true);
+        mock_pump.borrow_mut().checkpoint();
+
+        // Off after watering
+        std::thread::sleep(Duration::from_millis(100));
         mock_pump
             .borrow_mut()
             .expect_on()
